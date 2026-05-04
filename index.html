@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIHI RESTAURANTE - Acesso Freelancer</title>
+    <meta name="description" content="Portal de acesso para cadastro de freelancers da Divinas Gerais.">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BIHI RESTAURANTE</h1>
+            <p class="subtitle">Portal de Cadastro de Freelancers</p>
+        </header>
+
+        <main class="card">
+            <p style="text-align: center; margin-bottom: 2rem;">
+                Escaneie o QR Code correspondente à sua função para iniciar o cadastro.
+            </p>
+
+            <div class="qr-container">
+                <div class="qr-box staff">
+                    <h2>Staff</h2>
+                    <div id="qr-staff" class="qr-code"></div>
+                    <p>Atendentes, Cozinha, Bar</p>
+                </div>
+
+                <div class="qr-box delivery">
+                    <h2>Entregador</h2>
+                    <div id="qr-delivery" class="qr-code"></div>
+                    <p>Motoboys e Entregadores</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // O app precisa saber onde está hospedado para gerar o QR code com a URL completa.
+        // Como estamos rodando localmente/arquivos, usaremos uma URL base relativa.
+        // Em produção, isso seria substituído pelo domínio real.
+        const baseUrl = window.location.href.replace('index.html', '');
+        
+        const urlStaff = baseUrl + 'cadastro.html?tipo=staff';
+        const urlDelivery = baseUrl + 'cadastro.html?tipo=entregador';
+
+        new QRCode(document.getElementById("qr-staff"), {
+            text: urlStaff,
+            width: 200,
+            height: 200,
+            colorDark : "#3b82f6", // Blue for Staff
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        new QRCode(document.getElementById("qr-delivery"), {
+            text: urlDelivery,
+            width: 200,
+            height: 200,
+            colorDark : "#10b981", // Green for Delivery
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+    </script>
+</body>
+</html>
