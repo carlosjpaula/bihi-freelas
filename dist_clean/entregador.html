@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro - Bihi Restaurante</title>
+    <title>Cadastro Entregador - Bihi Restaurante</title>
     <link rel="stylesheet" href="css/styles.css">
     
     <!-- PWA Icons for Mobile Homescreen -->
@@ -18,24 +18,15 @@
 <body>
     <div class="container">
         <header>
-            <h1 id="page-title">Cadastro</h1>
+            <h1 id="page-title">Cadastro Entregador</h1>
             <p class="subtitle" id="page-subtitle">Preencha seus dados para continuar</p>
         </header>
 
         <main class="card" id="form-card">
             <form id="cadastro-form">
                 
-                <div class="form-group hidden" id="funcao-group">
-                    <label for="funcao">Qual a sua função?</label>
-                    <select id="funcao">
-                        <option value="">Selecione uma função...</option>
-                        <option value="garcom">Garçom</option>
-                        <option value="cumim">Cumim</option>
-                        <option value="auxiliar_servicos_gerais">Auxiliar de Serviços Gerais</option>
-                        <option value="auxiliar_cozinha">Auxiliar de Cozinha</option>
-                        <option value="cozinheiro">Cozinheiro</option>
-                    </select>
-                </div>
+                <!-- Campo oculto auxiliar para garantir o tipo JS -->
+                <select id="funcao" class="hidden"><option value="entregador" selected>Entregador</option></select>
                 <div class="form-group">
                     <label for="nome">Nome Completo</label>
                     <input type="text" id="nome" required placeholder="Digite seu nome">

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Financeiro - Bihi Restaurante</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- PWA Icons for Mobile Homescreen -->
+    <link rel="manifest" href="dashboard.webmanifest?v=2">
+    <link rel="apple-touch-icon" href="apple-icon.png?v=2">
+    <meta name="theme-color" content="#f97316">
+    <style>
+        .dashboard-container { max-width: 1200px; width: 100%; }
+        .toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .search-box { position: relative; flex-grow: 1; min-width: 250px; }
+        .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .search-box input { padding-left: 2.8rem; }
+        .filter-group { display: flex; gap: 0.5rem; }
+        .filter-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted);
+            padding: 0.6rem 1.2rem; border-radius: 20px; cursor: pointer; font-weight: 600; transition: all 0.2s;
+        }
+        .filter-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        
+        .freela-list { display: flex; flex-direction: column; gap: 1rem; }
+        .freela-item {
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 1.2rem; display: grid; grid-template-columns: auto 2fr 1fr 1fr 1.8fr auto;
+            align-items: center; gap: 1rem; transition: transform 0.2s;
+        }
+        .freela-item:hover { transform: translateX(5px); background: rgba(255,255,255,0.04); }
+        .freela-pic { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); }
+        .badge { font-size: 0.7rem; font-weight: bold; padding: 0.2rem 0.6rem; border-radius: 4px; text-transform: uppercase; display: inline-block; }
+        .badge-staff { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-delivery { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        
+        .valor-box { font-size: 1.1rem; font-weight: 700; color: #34d399; }
+        .pix-block {
+            background: rgba(0,0,0,0.3); padding: 0.4rem 0.8rem; border-radius: 6px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-family: monospace; font-size: 0.85rem; border: 1px dashed rgba(255,255,255,0.2);
+        }
+        .copy-btn { color: var(--primary-color); cursor: pointer; background: none; border: none; margin-left: 5px; }
+        .actions { display: flex; gap: 0.4rem; }
+        .action-btn {
+            width: 34px; height: 34px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted); text-decoration: none;
+        }
+        .action-btn:hover { background: var(--primary-color); color: white; }
+        .loading-state { text-align: center; padding: 3rem; color: var(--text-muted); }
+        .fa-spin { animation: fa-spin 1s infinite linear; }
+
+        /* --- ESTILOS MODAL CONFIGURAÇÕES --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 999;
+            display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: #1e293b; border: 1px solid var(--border-color); border-radius: 16px;
+            width: 90%; max-width: 700px; padding: 2rem; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .config-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+        .config-table th { text-align: left; color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
+        .config-table td { padding: 0.6rem 0.5rem; }
+        .config-table input { background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white; border-radius: 6px; padding: 0.4rem; width: 100px; }
+        
+        @media (max-width: 900px) {
+            .freela-item { grid-template-columns: auto 1fr; text-align: left; gap: 0.8rem; }
+            .freela-item > *:nth-child(n+3) { grid-column: 2; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container dashboard-container">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1>Gestão de Pagamentos</h1>
+                <p class="subtitle">Bihi Restaurante</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary" onclick="openModal()"><i class="fa fa-cog"></i> Tabela de Preços</button>
+                <button id="refresh-btn" class="btn"><i class="fa fa-sync"></i> Atualizar</button>
+            </div>
+        </header>
+
+        <main class="card">
+            <div class="toolbar">
+                <div class="search-box">
+                    <i class="fa fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Nome ou CPF...">
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+                    <input type="date" id="date-filter" style="width: auto;">
+                    <div id="total-day" style="background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; border: 1px solid rgba(52, 211, 153, 0.3);">
+                        Total: R$ 0,00
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <button class="filter-btn active" data-filter="all">Todos</button>
+                    <button class="filter-btn" data-filter="staff">Staff</button>
+                    <button class="filter-btn" data-filter="delivery">Entregas</button>
+                </div>
+            </div>
+
+            <div id="loading-view" class="loading-state hidden"><i class="fa fa-spinner fa-spin"></i><br>Carregando...</div>
+            <div id="empty-view" class="loading-state hidden"><i class="fa fa-folder-open"></i><p>Sem registros para este dia.</p></div>
+
+            <div class="freela-list" id="freela-list"></div>
+        </main>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÃO -->
+    <div class="modal-overlay" id="modal-config">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3><i class="fa fa-cog"></i> Configurar Valores das Diárias</h3>
+                <button class="btn-secondary" onclick="closeModal()" style="padding: 0.3rem 0.6rem; cursor: pointer;">&times;</button>
+            </div>
+            <p class="subtitle" style="font-size: 0.85rem; margin-top: 5px;">Defina quanto cada função ganha. O sistema usa isso para calcular a diária no cadastro.</p>
+            
+            <div id="config-loading" class="loading-state hidden"><i class="fa fa-spinner fa-spin"></i></div>
+            
+            <table class="config-table">
+                <thead>
+                    <tr>
+                        <th>Função</th>
+                        <th>Segunda a Sexta</th>
+                        <th>Sábado e Domingo</th>
+                    </tr>
+                </thead>
+                <tbody id="config-body">
+                    <!-- Inserido dinamicamente -->
+                </tbody>
+            </table>
+            
+            <div style="text-align: right; display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn" id="save-configs-btn" onclick="saveConfigs()">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyo_Hc6lIS1Amb-3hDLuQhtp2guTF3k0VxvMS9svRLdOSFe-OZlcKQmrq3ZC1QqwMZu/exec';
+        let allData = [];
+        let currentFilter = 'all';
+
+        const listContainer = document.getElementById('freela-list');
+        const dateFilter = document.getElementById('date-filter');
+
+        // Setup Data de Hoje
+        const today = new Date();
+        const offset = today.getTimezoneOffset();
+        dateFilter.value = new Date(today.getTime() - (offset*60*1000)).toISOString().split('T')[0];
+
+        async function fetchData() {
+            listContainer.innerHTML = '';
+            document.getElementById('loading-view').classList.remove('hidden');
+            document.getElementById('empty-view').classList.add('hidden');
+            try {
+                const r = await fetch(API_URL);
+                const d = await r.json();
+                allData = Array.isArray(d) ? d : [];
+                renderList();
+            } catch (e) { 
+                console.error(e);
+                alert("Erro ao carregar dados: " + e.message + "\n\nCertifique-se que o novo Código do Google já foi implantado!"); 
+            }
+            finally { document.getElementById('loading-view').classList.add('hidden'); }
+        }
+
+        function renderList() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const selD = dateFilter.value;
+            let brD = selD ? `${selD.split('-')[2]}/${selD.split('-')[1]}/${selD.split('-')[0]}` : "";
+
+            const filtered = allData.filter(i => {
+                const mS = (i.nome && i.nome.toLowerCase().includes(search)) || (i.cpf && i.cpf.includes(search));
+                let mT = true; const t = (i.tipofuncao || '').toLowerCase();
+                if (currentFilter === 'staff') mT = (t !== 'entregador');
+                else if (currentFilter === 'delivery') mT = (t === 'entregador');
+                let mD = true; if (brD && i.datahora) mD = i.datahora.split(' ')[0] === brD;
+                return mS && mT && mD;
+            });
+
+            // Calcular e Atualizar o Total Visual
+            const sum = filtered.reduce((acc, curr) => acc + Number(curr.valordiariars || 0), 0);
+            document.getElementById('total-day').innerHTML = `Total: R$ ${sum.toFixed(2).replace('.', ',')}`;
+            document.getElementById('total-day').style.display = filtered.length ? 'block' : 'none';
+
+            listContainer.innerHTML = '';
+            if (!filtered.length) { document.getElementById('empty-view').classList.remove('hidden'); return; }
+            document.getElementById('empty-view').classList.add('hidden');
+
+            filtered.forEach(i => {
+                const tf = (i.tipofuncao || '').toString().toLowerCase();
+                const isDel = tf === 'entregador';
+                const av = 'https://ui-avatars.com/api/?background=random&color=fff&name=' + encodeURI(i.nome || 'F');
+                
+                // Bulletproof text variables
+                const rawCpf = (i.cpf || '').toString().replace(/'/g, '');
+                const rawPix = (i.chavepix || '').toString();
+                const rawPhone = rawPix.replace(/\D/g, '');
+                const isValidPhone = rawPhone.length >= 10 && rawPhone.length <= 11;
+                const safeVal = Number(i.valordiariars || 0);
+
+                const el = document.createElement('div');
+                el.className = 'freela-item';
+                el.innerHTML = `
+                    <img src="${i.foto && i.foto !== '-' ? i.foto : av}" class="freela-pic">
+                    <div>
+                        <h4 style="color:#fff;margin-bottom:3px;">${i.nome || 'N/A'}</h4>
+                        <span class="badge ${isDel ? 'badge-delivery' : 'badge-staff'}">${i.tipofuncao || 'N/A'}</span>
+                        <small style="display:block; color:gray;margin-top:3px;">${i.datahora || '-'}</small>
+                    </div>
+                    <div><small style="color:gray;">CPF</small><div>${rawCpf || '-'}</div></div>
+                    <div class="valor-box">R$ ${safeVal.toFixed(2)}</div>
+                    <div>
+                        <div class="pix-block">
+                            <span>${rawPix || '-'}</span>
+                            <button class="copy-btn" onclick="copyPix('${rawPix.replace(/'/g,"\\'")}', this)"><i class="fa fa-copy"></i></button>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <a href="${i.contrato || '#'}" target="_blank" class="action-btn" title="Ver PDF" style="${i.contrato ? '' : 'display:none'}"><i class="fa fa-file-pdf"></i></a>
+                        <a href="https://wa.me/55${rawPhone}" target="_blank" class="action-btn" style="${isValidPhone ? '' : 'display:none;'}" title="Zap"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                `;
+                listContainer.appendChild(el);
+            });
+        }
+
+        function copyPix(val, btn) {
+            navigator.clipboard.writeText(val).then(() => {
+                const ic = btn.querySelector('i'); ic.className = 'fa fa-check'; ic.style.color = '#10b981';
+                setTimeout(() => { ic.className = 'fa fa-copy'; ic.style.color = ''; }, 2000);
+            });
+        }
+
+        // --- LÓGICA DO MODAL ---
+        let currentConfigs = [];
+        function openModal() {
+            document.getElementById('modal-config').classList.add('active');
+            loadConfigs();
+        }
+        function closeModal() { document.getElementById('modal-config').classList.remove('active'); }
+
+        async function loadConfigs() {
+            const body = document.getElementById('config-body');
+            const load = document.getElementById('config-loading');
+            body.innerHTML = ''; load.classList.remove('hidden');
+            try {
+                const r = await fetch(API_URL + '?action=getConfigs');
+                currentConfigs = await r.json();
+                currentConfigs.forEach((c, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-weight:600;">${c.funcao}</td>
+                        <td><input type="number" value="${c.valorsemanars || c.valor_semana || 0}" id="cfg-w-${idx}"></td>
+                        <td><input type="number" value="${c.valorfimdesemanars || c.valor_fimdesemana || 0}" id="cfg-we-${idx}"></td>
+                    `;
+                    body.appendChild(tr);
+                });
+            } catch(e) { alert("Erro ao carregar configs."); }
+            finally { load.classList.add('hidden'); }
+        }
+
+        async function saveConfigs() {
+            const btn = document.getElementById('save-configs-btn');
+            btn.innerText = "Salvando..."; btn.disabled = true;
+            
+            const updatedData = currentConfigs.map((c, idx) => ({
+                funcao: c.funcao,
+                valor_semana: Number(document.getElementById(`cfg-w-${idx}`).value),
+                valor_fimdesemana: Number(document.getElementById(`cfg-we-${idx}`).value)
+            }));
+
+            try {
+                const r = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'saveConfigs', data: updatedData })
+                });
+                const res = await r.json();
+                if (res.status === 'sucesso') {
+                    alert("Valores atualizados com sucesso na Planilha!");
+                    closeModal();
+                }
+            } catch(e) { alert("Falha ao salvar."); }
+            finally { btn.innerText = "Salvar Alterações"; btn.disabled = false; }
+        }
+
+        // Bind events
+        document.getElementById('refresh-btn').addEventListener('click', fetchData);
+        document.getElementById('search-input').addEventListener('input', renderList);
+        dateFilter.addEventListener('change', renderList);
+        document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', e => {
+            document.querySelectorAll('.filter-btn').forEach(btn=>btn.classList.remove('active'));
+            e.target.classList.add('active'); currentFilter = e.target.getAttribute('data-filter'); renderList();
+        }));
+        
+        fetchData();
+    </script>
+</body>
+</html>
+
