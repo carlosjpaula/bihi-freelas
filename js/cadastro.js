@@ -303,9 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="text-align: center; padding: 2rem;">
                     <h2 style="color: #10b981; margin-bottom: 1rem;">✅ Cadastro Concluído!</h2>
                     <p>Seus dados foram registrados com sucesso na Divinas Gerais.</p>
-                    <p style="margin-top: 1rem; margin-bottom: 2rem; color: var(--text-muted);">Baixe a sua cópia oficial do contrato abaixo:</p>
-                    
-                    <a href="${pdfBase64String}" download="${opt.filename}" class="btn" style="display: block; background-color: #3b82f6; text-decoration: none; padding: 1rem; margin-bottom: 1rem; color: white; font-weight: bold; border-radius: 8px;">⬇️ Baixar Minha Cópia (PDF)</a>
+                    <p style="margin-top: 1rem; margin-bottom: 2rem; color: var(--text-muted);"></p>
                     
                     <button onclick="window.location.href='index.html'" class="btn-secondary" style="width: 100%; padding: 1rem; border-radius: 8px; background: transparent; color: white; border: 1px solid #555; cursor: pointer;">Finalizar e Voltar</button>
                 </div>
