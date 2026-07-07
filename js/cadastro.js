@@ -41,6 +41,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('page-title').innerText = `Cadastro - ${grupoPrincipal === 'staff' ? 'Staff Interno' : 'Entregador'}`;
     document.getElementById('contract-text').innerText = contratos[grupoPrincipal];
 
+    const contractText = document.getElementById('contract-text');
+    const aceitaTermosCheckbox = document.getElementById('aceita-termos');
+    const labelAceitaTermos = document.getElementById('label-aceita-termos');
+
+    contractText.addEventListener('scroll', () => {
+        if (contractText.scrollTop + contractText.clientHeight >= contractText.scrollHeight - 15) {
+            aceitaTermosCheckbox.removeAttribute('disabled');
+            labelAceitaTermos.style.opacity = '1';
+            labelAceitaTermos.style.cursor = 'pointer';
+        }
+    });
+
+    setTimeout(() => {
+        if (contractText.scrollHeight <= contractText.clientHeight) {
+            aceitaTermosCheckbox.removeAttribute('disabled');
+            labelAceitaTermos.style.opacity = '1';
+            labelAceitaTermos.style.cursor = 'pointer';
+        }
+    }, 200);
+
     // 2. Lógica do MEI
     const selectMei = document.getElementById('tem-mei');
     const cnpjGroup = document.getElementById('cnpj-group');
@@ -243,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const formCard = document.getElementById('form-card');
         const btnSubmit = document.getElementById('btn-submit');
         
-        btnSubmit.innerText = 'Gerando Contrato...';
+        btnSubmit.innerText = 'Finalizando Cadastro...';
         btnSubmit.disabled = true;
 
         const opt = {
@@ -283,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 photoBase64: photoDataUrl
             };
 
-            const GOOGLE_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyo_Hc6lIS1Amb-3hDLuQhtp2guTF3k0VxvMS9svRLdOSFe-OZlcKQmrq3ZC1QqwMZu/exec';
+            const GOOGLE_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzFcDpQrMWSZLP-J07L7_QNnYFfesCQ2G5CIjQzSEdDLHQ3WyYcUiaXqU-n7m2Y9HFB/exec';
 
             // Enviar os dados via POST para a planilha
             await fetch(GOOGLE_WEBAPP_URL, {
@@ -310,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         } catch (error) {
             alert('Erro ao gerar o PDF. Tente novamente.');
-            btnSubmit.innerText = 'Finalizar e Gerar Contrato';
+            btnSubmit.innerText = 'Finalizar Cadastro';
             btnSubmit.disabled = false;
         } finally {
             pdfWrapper.classList.add('hidden');

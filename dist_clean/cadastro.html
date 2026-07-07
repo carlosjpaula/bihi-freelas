@@ -93,11 +93,15 @@
                 <hr style="border-color: rgba(255,255,255,0.1); margin: 2rem 0;">
 
                 <div class="form-group">
-                    <div id="contract-text" class="hidden"></div>
+                    <label>Cláusulas do Contrato</label>
+                    <p class="subtitle" style="font-size: 0.85rem; margin-bottom: 1rem;">
+                        Por favor, role as cláusulas do contrato até o final para liberar o aceite.
+                    </p>
+                    <div id="contract-text" class="contract-text"></div>
                     
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="aceita-termos" required>
-                        <label for="aceita-termos" style="font-weight: normal; margin-bottom: 0;">Li e aceito os termos do contrato de prestação de serviços.</label>
+                    <div class="checkbox-group" style="margin-top: 1rem;">
+                        <input type="checkbox" id="aceita-termos" required disabled>
+                        <label id="label-aceita-termos" for="aceita-termos" style="font-weight: normal; margin-bottom: 0; opacity: 0.5; cursor: not-allowed; transition: all 0.3s;">Li e aceito os termos do contrato de prestação de serviços.</label>
                     </div>
                 </div>
 
@@ -110,7 +114,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-block" id="btn-submit">Finalizar e Gerar Contrato</button>
+                <button type="submit" class="btn btn-block" id="btn-submit">Finalizar Cadastro</button>
             </form>
         </main>
 

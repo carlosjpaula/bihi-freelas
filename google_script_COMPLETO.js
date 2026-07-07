@@ -1,11 +1,26 @@
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = SpreadsheetApp.openById("1MgSAMk6AfOuyGS_NU_czhV0pvabuWrXN0Eze6OjnnNs");
     
-    // Roteador de Ações: Salvar Configurações via Dashboard
+    let sTmp = ss.getSheetByName("Registros");
+    if (sTmp) {
+      if (sTmp.getRange(1, 11).getValue() === "") sTmp.getRange(1, 11).setValue("Status Pagamento");
+      if (sTmp.getRange(1, 12).getValue() === "") sTmp.getRange(1, 12).setValue("Comprovante Pix");
+    }
+    
+    // Roteador de Ações
     if (payload.action === "saveConfigs") {
       return saveConfigs(ss, payload.data);
+    }
+    if (payload.action === "uploadComprovante") {
+      return uploadComprovante(ss, payload);
+    }
+    if (payload.action === "updatePaymentStatus") {
+      return updatePaymentStatus(ss, payload);
+    }
+    if (payload.action === "deleteFreelancer") {
+      return deleteFreelancer(ss, payload);
     }
     
     // Caso contrário, prosseguir para o fluxo normal de Cadastro do Freelancer
@@ -18,7 +33,7 @@ function doPost(e) {
 
 function doGet(e) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = SpreadsheetApp.openById("1MgSAMk6AfOuyGS_NU_czhV0pvabuWrXN0Eze6OjnnNs");
     const action = e.parameter.action;
     
     if (action === "getConfigs") {
@@ -28,6 +43,9 @@ function doGet(e) {
     // Fluxo padrão: Listar Registros para o Dashboard
     let sheet = ss.getSheetByName("Registros");
     if (!sheet) sheet = ss.getActiveSheet();
+    
+    if (sheet.getRange(1, 11).getValue() === "") sheet.getRange(1, 11).setValue("Status Pagamento");
+    if (sheet.getRange(1, 12).getValue() === "") sheet.getRange(1, 12).setValue("Comprovante Pix");
     
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return formatJsonOutput([]);
@@ -79,33 +97,41 @@ function registerFreelancer(ss, payload) {
 
   // Organizar Pastas no Drive
   const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const pastaDestino = getNestedFolder(["Planilhas", "FREELANCERS", meses[dataServidor.getMonth()] + "_" + dataServidor.getFullYear()]);
+  const nomeMes = meses[dataServidor.getMonth()];
+  const diaCorrenteNum = dataServidor.getDate();
+  const diaCorrente = diaCorrenteNum < 10 ? "0" + diaCorrenteNum : String(diaCorrenteNum);
   
   // Salvar Arquivos
   let pdfUrl = "-";
   if (payload.pdfBase64) {
-    const filePdf = pastaDestino.createFile(Utilities.newBlob(Utilities.base64Decode(payload.pdfBase64), 'application/pdf', "Contrato_" + payload.nome.replace(/\s+/g, "_") + ".pdf"));
+    const pastaContratos = getNestedFolder(["Contratos", nomeMes, diaCorrente]);
+    const filePdf = pastaContratos.createFile(Utilities.newBlob(Utilities.base64Decode(payload.pdfBase64), 'application/pdf', "Contrato_" + payload.nome.replace(/\s+/g, "_") + ".pdf"));
     filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     pdfUrl = filePdf.getUrl();
   }
   
   let photoUrl = "-";
   if (payload.photoBase64) {
-    const filePhoto = pastaDestino.createFile(Utilities.newBlob(Utilities.base64Decode(payload.photoBase64.split(',')[1]), 'image/jpeg', "Selfie_" + payload.nome.replace(/\s+/g, "_") + ".jpg"));
+    const pastaFotos = getNestedFolder(["Fotos", nomeMes, diaCorrente]);
+    const filePhoto = pastaFotos.createFile(Utilities.newBlob(Utilities.base64Decode(payload.photoBase64.split(',')[1]), 'image/jpeg', "Selfie_" + payload.nome.replace(/\s+/g, "_") + ".jpg"));
     filePhoto.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     photoUrl = filePhoto.getUrl();
   }
   
-  // Cabeçalho se vazio
+  // Cabeçalho se vazio ou incompleto (migração automática)
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["Data/Hora", "Nome", "CPF", "Tipo/Função", "Valor Diária (R$)", "Chave PIX", "Possui MEI?", "CNPJ", "Contrato", "Foto"]);
-    sheet.getRange("A1:J1").setFontWeight("bold").setBackground("#d1d5db");
+    sheet.appendRow(["Data/Hora", "Nome", "CPF", "Tipo/Função", "Valor Diária (R$)", "Chave PIX", "Possui MEI?", "CNPJ", "Contrato", "Foto", "Status Pagamento", "Comprovante Pix"]);
+    sheet.getRange("A1:L1").setFontWeight("bold").setBackground("#d1d5db");
+  } else if (sheet.getLastColumn() < 12) {
+    sheet.getRange(1, 11).setValue("Status Pagamento");
+    sheet.getRange(1, 12).setValue("Comprovante Pix");
+    sheet.getRange("A1:L1").setFontWeight("bold").setBackground("#d1d5db");
   }
   
   // Inserir
   sheet.appendRow([
     payload.dataHora, payload.nome, "'" + payload.cpf, payload.tipo, valorPago, payload.pix,
-    payload.mei ? "SIM" : "NÃO", payload.cnpj || "-", pdfUrl, photoUrl
+    payload.mei ? "SIM" : "NÃO", payload.cnpj || "-", pdfUrl, photoUrl, "Pendente", "-"
   ]);
   
   return formatJsonOutput({ status: "sucesso" });
@@ -162,20 +188,133 @@ function saveConfigs(ss, newData) {
 // UTILITÁRIOS
 // ============================================
 function getNestedFolder(pathArray) {
-  let cur = DriveApp.getRootFolder();
+  // Acessa a pasta raiz fornecida pelo usuário por ID
+  let cur = DriveApp.getFolderById("1ldBUclQF6QOL7qaiz4LtuqKQ2L9fP-A-");
+  
+  // Cria ou abre as subpastas sequencialmente
   pathArray.forEach(name => {
     let folders = cur.getFoldersByName(name);
     cur = folders.hasNext() ? folders.next() : cur.createFolder(name);
   });
+  
   return cur;
 }
 
 function normalizeHeader(s) {
   return s.toString().toLowerCase().trim()
+    .replace(/r\$/g, 'rs')
     .replace(/[áàãâ]/g, 'a').replace(/[éê]/g, 'e').replace(/[í]/g, 'i').replace(/[óõô]/g, 'o').replace(/[ú]/g, 'u').replace(/ç/g, 'c')
     .replace(/[^a-z0-9]/g, ''); // Apenas letras e números
 }
 
 function formatJsonOutput(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================
+// SISTEMA DE GESTÃO DE PAGAMENTOS (DASHBOARD)
+// ============================================
+function uploadComprovante(ss, payload) {
+  let sheet = ss.getSheetByName("Registros");
+  if (!sheet) return formatJsonOutput({ status: "erro", mensagem: "Aba Registros não encontrada" });
+  
+  const rowIndex = findRowIndex(sheet, payload.cpf, payload.dataHora);
+  if (rowIndex === -1) {
+    return formatJsonOutput({ status: "erro", mensagem: "Freelancer não encontrado na planilha" });
+  }
+  
+  // Salvar comprovante no Drive
+  const dataServidor = new Date();
+  const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const nomeMes = meses[dataServidor.getMonth()];
+  const diaCorrenteNum = dataServidor.getDate();
+  const diaCorrente = diaCorrenteNum < 10 ? "0" + diaCorrenteNum : String(diaCorrenteNum);
+  
+  const pastaComprovantes = getNestedFolder(["Comprovantes", nomeMes, diaCorrente]);
+  
+  const mimeType = payload.fileBase64.split(';')[0].split(':')[1];
+  const base64Data = payload.fileBase64.split(',')[1];
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, "Comprovante_" + payload.fileName);
+  
+  const file = pastaComprovantes.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const fileUrl = file.getUrl();
+  
+  // Atualizar a Planilha (Coluna 11 = Status Pagamento, Coluna 12 = Comprovante Pix)
+  sheet.getRange(rowIndex, 11).setValue("Pago");
+  sheet.getRange(rowIndex, 12).setValue(fileUrl);
+  
+  return formatJsonOutput({ status: "sucesso", comprovanteUrl: fileUrl });
+}
+
+function updatePaymentStatus(ss, payload) {
+  let sheet = ss.getSheetByName("Registros");
+  if (!sheet) return formatJsonOutput({ status: "erro", mensagem: "Aba Registros não encontrada" });
+  
+  const rowIndex = findRowIndex(sheet, payload.cpf, payload.dataHora);
+  if (rowIndex === -1) {
+    return formatJsonOutput({ status: "erro", mensagem: "Freelancer não encontrado na planilha" });
+  }
+  
+  const status = payload.pago ? "Pago" : "Pendente";
+  sheet.getRange(rowIndex, 11).setValue(status);
+  
+  return formatJsonOutput({ status: "sucesso" });
+}
+
+function findRowIndex(sheet, cpf, dataHora) {
+  const data = sheet.getDataRange().getValues();
+  const cleanCpf = cpf.replace(/\D/g, "");
+  
+  let targetDateStr = "";
+  try {
+    let dStr = dataHora.trim();
+    if (dStr.includes('T')) {
+      const datePart = dStr.split('T')[0];
+      const partes = datePart.split('-');
+      targetDateStr = `${partes[2]}/${partes[1]}/${partes[0]}`;
+    } else if (dStr.includes('/')) {
+      targetDateStr = dStr.split(' ')[0];
+    }
+  } catch(e) {}
+  
+  if (!targetDateStr) return -1;
+  
+  for (let i = 1; i < data.length; i++) {
+    const rowCpf = String(data[i][2]).replace(/\D/g, "");
+    if (rowCpf !== cleanCpf) continue;
+    
+    const cellValue = data[i][0];
+    let rowDateStr = "";
+    if (cellValue instanceof Date) {
+      rowDateStr = Utilities.formatDate(cellValue, "America/Sao_Paulo", "dd/MM/yyyy");
+    } else if (cellValue) {
+      let dStr = String(cellValue).trim();
+      if (dStr.includes('T')) {
+        const datePart = dStr.split('T')[0];
+        const partes = datePart.split('-');
+        rowDateStr = `${partes[2]}/${partes[1]}/${partes[0]}`;
+      } else if (dStr.includes('/')) {
+        rowDateStr = dStr.split(' ')[0];
+      }
+    }
+    
+    if (rowDateStr === targetDateStr) {
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+function deleteFreelancer(ss, payload) {
+  let sheet = ss.getSheetByName("Registros");
+  if (!sheet) return formatJsonOutput({ status: "erro", mensagem: "Aba Registros não encontrada" });
+  
+  const rowIndex = findRowIndex(sheet, payload.cpf, payload.dataHora);
+  if (rowIndex === -1) {
+    return formatJsonOutput({ status: "erro", mensagem: "Freelancer não encontrado na planilha" });
+  }
+  
+  sheet.deleteRow(rowIndex);
+  return formatJsonOutput({ status: "sucesso" });
 }
